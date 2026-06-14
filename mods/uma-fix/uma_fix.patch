@@ -31,19 +31,20 @@ index bad7e06..655b0e4 100644
              total_frames,
              self._encoder_chunk(
 diff --git a/vllm/utils/mem_utils.py b/vllm/utils/mem_utils.py
-index 4efb299..825fdaa 100644
+index 9c16e00..a680ecb 100644
 --- a/vllm/utils/mem_utils.py
 +++ b/vllm/utils/mem_utils.py
-@@ -12,6 +12,8 @@ import torch
+@@ -13,7 +13,9 @@ import torch
  import torch.types
  
+ from vllm.logger import init_logger
  from vllm.platforms import current_platform
 +from vllm.platforms.interface import in_wsl
 +from vllm.utils.import_utils import import_pynvml
  
  from .mem_constants import GiB_bytes, KiB_bytes, MiB_bytes
  
-@@ -28,6 +30,48 @@ def format_gib(b: int) -> str:
+@@ -34,6 +36,48 @@ def format_gib(b: int) -> str:
      return f"{round(b / GiB_bytes, 2)}"
  
  
@@ -92,20 +93,31 @@ index 4efb299..825fdaa 100644
  @cache
  def get_max_shared_memory_bytes(gpu: int = 0) -> int:
      """Returns the maximum shared memory per thread block in bytes."""
-@@ -105,15 +149,32 @@ class MemorySnapshot:
+@@ -60,5 +104,9 @@ def release_device_memory_under_pressure(device: torch.device) -> bool:
+     Returns:
+         True if memory was released.
+     """
+-    if device.type != "cuda" or not current_platform.is_integrated_gpu(device.index):
++    if (
++        device.type != "cuda"
++        or in_wsl()
++        or not current_platform.is_integrated_gpu(_device_index(device))
++    ):
+         return False
+@@ -143,15 +192,32 @@ class MemorySnapshot:
              "allocated_bytes.all.peak", 0
          )
  
 -        self.free_memory, self.total_memory = current_platform.mem_get_info(device)
 -        if current_platform.is_integrated_gpu(device.index):
 +        device_id = _device_index(device)
-+        cuda_free_memory, cuda_total_memory = current_platform.mem_get_info(device)
 +        is_wsl = in_wsl()
 +        if is_wsl:
-+            self.free_memory, self.total_memory = cuda_mem_get_info(device)
++            cuda_free_memory, cuda_total_memory = cuda_mem_get_info(device)
 +        else:
-+            self.free_memory = cuda_free_memory
-+            self.total_memory = cuda_total_memory
++            cuda_free_memory, cuda_total_memory = current_platform.mem_get_info(device)
++        self.free_memory = cuda_free_memory
++        self.total_memory = cuda_total_memory
 +
 +        # Only apply host-memory UMA accounting outside WSL. Under WSL, CUDA
 +        # can report system/UMA allocatable memory; treat it as a normal GPU by
