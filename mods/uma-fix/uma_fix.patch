@@ -176,9 +176,10 @@ diff --git a/vllm/v1/worker/gpu/spec_decode/eagle/utils.py b/vllm/v1/worker/gpu/
 index c292c2b..2c98a98 100644
 --- a/vllm/v1/worker/gpu/spec_decode/eagle/utils.py
 +++ b/vllm/v1/worker/gpu/spec_decode/eagle/utils.py
-@@ -6,6 +6,7 @@ import torch.nn as nn
+@@ -6,7 +6,8 @@ import torch.nn as nn
  from vllm.config import VllmConfig
  from vllm.distributed.parallel_state import get_pp_group
+ from vllm.lora.layers.base import BaseLayerWithLoRA
  from vllm.model_executor.model_loader import get_model
 +from vllm.utils.mem_utils import cuda_mem_get_info
  
