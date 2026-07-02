@@ -141,7 +141,7 @@ The `build_args` field passes flags to `build-and-copy.sh`:
 | Flag | Description |
 |------|-------------|
 | `--exp-mxfp4` | Use MXFP4 Dockerfile (for MXFP4 quantized models) |
-| `--use-wheels` | Use pre-built wheels instead of building from source |
+| `--use-wheels` | Build the runner image from prebuilt or local wheels instead of pulling `eugr/spark-vllm:latest` |
 
 ### Parameter Substitution
 

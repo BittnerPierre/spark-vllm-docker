@@ -26,12 +26,12 @@ While it was primarily developed to support multi-node inference, it works just 
 
 This repository is not affiliated with NVIDIA or their subsidiaries. This is a community effort aimed to help DGX Spark users to set up and run the most recent versions of vLLM on Spark cluster or single nodes. 
 
-Unless `--rebuild-vllm` or `--vllm-ref` or `--apply-vllm-pr` is specified, the builder will fetch the latest precompiled vLLM wheels from the repository. They are built nightly and tested on multiple models in both cluster and solo configuration before publishing.
+By default, `build-and-copy.sh` pulls the tested nightly runner image from DockerHub: `eugr/spark-vllm:latest`. Nightly images are built and tested on multiple models in both cluster and solo configuration before `latest` is advanced.
 We will expand the selection of models we test in the pipeline, but since vLLM is a rapidly developing platform, some things may break.
 
-If you want to build the latest from main branch, you can specify `--rebuild-vllm` flag. Or you can target a specific vLLM release by setting `--vllm-ref` parameter.
+If you want to build from precompiled vLLM and Flashinfer wheels instead, specify `--use-wheels`. To build the latest vLLM from the main branch, use `--rebuild-vllm`; to target a specific vLLM release or commit, set `--vllm-ref`.
 
-Similarly, `--rebuild-flashinfer`, `--flashinfer-ref`, and `--apply-flashinfer-pr` control the FlashInfer build in the same way.
+Similarly, `--rebuild-flashinfer`, `--flashinfer-ref`, and `--apply-flashinfer-pr` control the FlashInfer build and force the local build path.
 
 ## QUICK START
 
@@ -44,7 +44,7 @@ git clone https://github.com/eugr/spark-vllm-docker.git
 cd spark-vllm-docker
 ```
 
-Build the container.
+Prepare the container image.
 
 **If you have only one DGX Spark:**
 
@@ -56,13 +56,17 @@ Build the container.
 
 Make sure you connect your Sparks together and enable passwordless SSH as described in our [Networking Guide](docs/NETWORKING.md). You can also check out NVIDIA's [Connect Two Sparks Playbook](https://build.nvidia.com/spark/connect-two-sparks/stacked-sparks), but using our guide is the best way to get started. The guide includes instructions for 3-node Spark mesh clusters.
 
-Then run the following command that will build and distribute image across the cluster.
+Then run the following command to pull, tag, and distribute the image across the cluster.
 
 ```bash
 ./build-and-copy.sh -c
 ```
 
-An initial build speed depends on your Internet connection speed and whether the base image is already present on your machine. After base image pull, the build should take only 2-3 minutes. If `--rebuild-vllm` and/or `--rebuild-flashinfer` is used to trigger a source build, it will take between 20-40 minutes, but subsequent builds will be faster. Prebuilt FlashInfer and vLLM wheels are downloaded automatically from GitHub releases, so compilation from source is usually not required.
+The default image preparation speed depends mostly on your Internet connection and whether `eugr/spark-vllm:latest` is already present locally.
+
+For slower internet connections it can be faster to build from the precompiled wheels by using `--use-wheels` parameter. An initial build speed depends on your Internet connection speed and whether the base image is already present on your machine. After base image pull, the build should take only 2-3 minutes.
+
+If `--use-wheels`, `--rebuild-vllm`, `--rebuild-flashinfer`, or another build customization is used, the script keeps the local wheel-based build path; full source rebuilds can take 20-40 minutes, but subsequent builds are faster.
 
 ### Run
 
@@ -141,6 +145,16 @@ Don't do it every time you rebuild, because it will slow down compilation times.
 For periodic maintenance, I recommend using a filter: `docker builder prune --filter until=72h`
 
 ## CHANGELOG
+
+### 2026-07-02
+
+#### Prebuilt runner image by default
+
+`build-and-copy.sh` now pulls prebuilt `eugr/spark-vllm:latest` by default and tags it locally as `vllm-node` or the tag requested with `-t`. The `latest` tag points at the latest tested nightly image. The prebuilt image is updated at the same time as prebuilt wheels by the CI pipeline, so they all stay in sync.
+
+Use `--use-wheels` to keep the previous wheel-based runner build path. Build customization flags such as `--exp-mxfp4`, non-default `--gpu-arch`, `--vllm-ref`, `--flashinfer-ref`, rebuild/download flags, and PR application flags also keep the local build path. `--tf5` remains a tag-compatibility alias and pulls the prebuilt image as `vllm-node-tf5`.
+
+Copy now checks the image ID locally and on each remote host before saving the image. Hosts that already have the same image ID are skipped, and `docker save` is skipped entirely when every target is already current. `--no-build` still skips image preparation and only copies an already-local tag when needed.
 
 ### 2026-07-01
 
@@ -1184,21 +1198,27 @@ Building the container manually is no longer supported due to Dockerfile complex
 
 ### Using the Build Script
 
-The `build-and-copy.sh` script automates the build process and optionally copies the image to one or more nodes. This is the officially supported method for building and deploying to multiple Spark nodes.
+The `build-and-copy.sh` script prepares the runner image and optionally copies it to one or more nodes. By default it pulls `eugr/spark-vllm:latest` and tags it locally; use `--use-wheels` or build customization flags when you need a local wheel/source build.
 
-**Basic usage (build only):**
+**Basic usage (prepare local image):**
 
 ```bash
 ./build-and-copy.sh
 ```
 
-**Build with a custom tag:**
+**Prepare with a custom local tag:**
 
 ```bash
 ./build-and-copy.sh -t my-vllm-node
 ```
 
-**Build and copy to Spark node(s):**
+**Build runner image from wheels:**
+
+```bash
+./build-and-copy.sh --use-wheels
+```
+
+**Prepare and copy to Spark node(s):**
 
 Using the same username as currently logged-in user (single host):
 
@@ -1218,7 +1238,7 @@ Copy to multiple hosts in parallel:
 ./build-and-copy.sh --copy-to 192.168.177.12 192.168.177.13 --copy-parallel
 ```
 
-**Build and copy using autodiscovery:**
+**Prepare and copy using autodiscovery:**
 
 If you omit the host list after `--copy-to`, the script will attempt to auto-discover other nodes in the cluster (excluding the current node) and copy the image to them.
 
@@ -1266,8 +1286,9 @@ Using a different username:
 
 | Flag | Description |
 | :--- | :--- |
-| `-t, --tag <tag>` | Image tag (default: `vllm-node`; auto-set to `vllm-node-tf5` with `--tf5`, `vllm-node-mxfp4` with `--exp-mxfp4`) |
-| `--gpu-arch <arch>` | Target GPU architecture (default: `12.1a`) |
+| `-t, --tag <tag>` | Local image tag (default: `vllm-node`; auto-set to `vllm-node-tf5` with `--tf5`, `vllm-node-mxfp4` with `--exp-mxfp4`) |
+| `--use-wheels` | Build the runner image from prebuilt or local wheels instead of pulling `eugr/spark-vllm:latest` |
+| `--gpu-arch <arch>` | Target GPU architecture for wheel/source builds. The default `12.1a` still uses the prebuilt image unless another build-forcing flag is set. |
 | `--rebuild-flashinfer` | Skip prebuilt wheel download; force a fresh local FlashInfer build |
 | `--rebuild-vllm` | Force rebuild vLLM from source |
 | `--force-flashinfer-download` | Force download FlashInfer wheels, skipping cached wheel checks |
@@ -1278,17 +1299,17 @@ Using a different username:
 | `--apply-vllm-pr <pr-num>` | Apply a vLLM PR patch during build. Can be specified multiple times. |
 | `--apply-preset-vllm-prs` | Also apply Dockerfile preset vLLM PRs when `--apply-vllm-pr` is specified. |
 | `--apply-flashinfer-pr <pr-num>` | Apply a FlashInfer PR patch during build. Can be specified multiple times. |
-| `--tf5` | Deprecated compatibility flag; performs a normal build but keeps the legacy `vllm-node-tf5` default tag. Aliases: `--pre-tf, --pre-transformers`. |
+| `--tf5` | Deprecated compatibility flag; pulls/tags the prebuilt image as `vllm-node-tf5` unless another build-forcing flag is set. Aliases: `--pre-tf, --pre-transformers`. |
 | `--exp-mxfp4` | Build with experimental native MXFP4 support. Alias: `--experimental-mxfp4`. |
-| `-c, --copy-to <hosts>` | Host(s) to copy the image to after building (space- or comma-separated). |
+| `-c, --copy-to <hosts>` | Host(s) to copy the image to after preparation (space- or comma-separated). Hosts with the same image ID are skipped. |
 | `--copy-to-host` | Alias for `--copy-to` (backwards compatibility). |
 | `--copy-parallel` | Copy to all specified hosts concurrently. |
 | `-j, --build-jobs <jobs>` | Number of parallel build jobs (default: 16) |
 | `-u, --user <user>` | Username for SSH connection (default: current user) |
 | `--full-log` | Enable full Docker build output (`--progress=plain`) |
-| `--no-build` | Skip building, only copy existing image (requires `--copy-to`) |
+| `--no-build` | Skip image preparation entirely, only copy an existing local image tag (requires `--copy-to`) |
 | `--network <name>` | Docker network to use during build (e.g. `host`). |
-| `--cleanup` | Remove all cached `.whl` and `*-commit` files from the `wheels/` directory. |
+| `--cleanup` | Remove all cached `.whl` and `*-commit` files from the `wheels/` directory; this does not force a local build by itself. |
 | `--config <file>` | Path to `.env` configuration file (default: `.env` in script directory) |
 | `--setup` | Force autodiscovery and save configuration to `.env` (even if `.env` already exists) |
 | `-h, --help` | Show help message |
