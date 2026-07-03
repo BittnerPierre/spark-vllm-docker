@@ -1,0 +1,38 @@
+# Recipe: Mistral-Medium-3.5-128B-NVFP4 (custom, NOT from upstream eugr repo)
+# Mistral Medium 3.5 — DENSE 128B + multimodal Pixtral, format HF transformers, TurboQuant KV
+# NB: très différent de Mistral-Small-4 (qui est MoE + MLA + format Mistral natif)
+
+recipe_version: "1"
+name: Mistral-Medium-3.5-128B-NVFP4
+description: vLLM serving Mistral Medium 3.5 128B dense NVFP4 (HF format, TurboQuant KV) with Ray
+
+model: RecViking/Mistral-Medium-3.5-128B-NVFP4
+container: vllm-node
+cluster_only: true
+mods: []
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.9
+  max_model_len: 65536
+
+env: {}
+
+command: |
+  vllm serve RecViking/Mistral-Medium-3.5-128B-NVFP4 \
+      --served-model-name mistralai/Mistral-Medium-3.5-128B \
+      --port {port} \
+      --host {host} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      -tp {tensor_parallel} \
+      --distributed-executor-backend ray \
+      --max-model-len {max_model_len} \
+      --tool-call-parser mistral \
+      --enable-auto-tool-choice \
+      --kv-cache-dtype turboquant_4bit_nc \
+      --safetensors-load-strategy prefetch \
+      --limit-mm-per-prompt '{{"image":4}}' \
+      --max-num-batched-tokens 16384 \
+      --max-num-seqs 16

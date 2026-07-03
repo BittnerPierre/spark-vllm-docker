@@ -1,0 +1,48 @@
+# Recipe: unsloth/Qwen3.6-27B-NVFP4
+# Qwen 3.6 27B dense en NVFP4 (quant unsloth)
+# Recette maison (non upstream eugr)
+# Note : la carte HF unsloth recommande --dtype bfloat16, mais ce flag désactive
+# les chemins kernels NVFP4 et ramène les performances au niveau d'un modèle dense
+# en BF16 (~9.6 t/s observés sur Spark, conforme aux mesures de la communauté pour
+# Qwen 3.6 27B non quantisé). On retire ce flag pour bénéficier de la quantification.
+# max-model-len à 16384 pour permettre le test à depth=8192.
+
+recipe_version: "1"
+name: Qwen36-27B-NVFP4
+description: vLLM serving Qwen3.6-27B-NVFP4 (dense, NVFP4)
+
+model: unsloth/Qwen3.6-27B-NVFP4
+
+container: vllm-node
+
+mods:
+  - mods/fix-qwen3.6-chat-template
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.85
+  max_model_len: 16384
+  max_num_batched_tokens: 16384
+
+env:
+  VLLM_MARLIN_USE_ATOMIC_ADD: 1
+
+command: |
+  vllm serve unsloth/Qwen3.6-27B-NVFP4 \
+    --host {host} \
+    --port {port} \
+    --trust-remote-code \
+    --max-model-len {max_model_len} \
+    --max-num-batched-tokens {max_num_batched_tokens} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --enable-auto-tool-choice \
+    --tool-call-parser qwen3_xml \
+    --kv-cache-dtype fp8 \
+    --load-format fastsafetensors \
+    --attention-backend flashinfer \
+    --enable-prefix-caching \
+    --chat-template fixed_chat_template.jinja \
+    -tp {tensor_parallel} \
+    --distributed-executor-backend ray

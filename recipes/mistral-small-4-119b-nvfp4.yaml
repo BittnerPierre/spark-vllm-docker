@@ -1,0 +1,37 @@
+# Recipe: Mistral-Small-4-119B-NVFP4 (custom, NOT from upstream eugr repo)
+# Mistral Small 4 119B MoE NVFP4 — DeepSeek-style MLA attention, format Mistral natif
+
+recipe_version: "1"
+name: Mistral-Small-4-119B-NVFP4
+description: vLLM serving Mistral Small 4 119B MoE NVFP4 with Ray distributed backend
+
+model: mistralai/Mistral-Small-4-119B-2603-NVFP4
+container: vllm-node
+mods: []
+
+defaults:
+  port: 8000
+  host: 0.0.0.0
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.8
+  max_model_len: 65536
+
+env: {}
+
+command: |
+  vllm serve mistralai/Mistral-Small-4-119B-2603-NVFP4 \
+      --port {port} \
+      --host {host} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      -tp {tensor_parallel} \
+      --distributed-executor-backend ray \
+      --max-model-len {max_model_len} \
+      --tokenizer-mode mistral \
+      --config-format mistral \
+      --load-format mistral \
+      --tool-call-parser mistral \
+      --enable-auto-tool-choice \
+      --reasoning-parser mistral \
+      --attention-backend TRITON_MLA \
+      --max-num-batched-tokens 16384 \
+      --max-num-seqs 128
