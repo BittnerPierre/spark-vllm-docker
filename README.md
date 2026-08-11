@@ -168,6 +168,21 @@ For periodic maintenance, I recommend using a filter: `docker builder prune --fi
 
 ## CHANGELOG
 
+### 2026-08-11
+
+#### Nemotron 3.5 Lightning recipe
+
+Added a recipe for NVIDIA's Nemotron 3.5 Lightning with DSpark and 1M context.
+
+Quick start:
+
+```bash
+git pull
+./hf-download.sh nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4 # add -c for cluster
+./hf-download.sh nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4-DSpark # speculator model; add -c for cluster
+./run-recipe.sh recipes/nemotron-3.5-lightning.yaml --solo
+```
+
 ### 2026-08-06
 
 #### GLM-5.2 NVFP4 8x Spark cluster recipe

@@ -20,22 +20,17 @@ defaults:
   max_num_batched_tokens: 16384
   num_speculative_tokens: 3
 
-env:
-  VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
-
 command: |
   vllm serve nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4 \
     --host {host} \
     --port {port} \
     --moe-backend marlin \
-    --trust-remote-code \
     --kv-cache-dtype fp8 \
     --max-model-len {max_model_len} \
     --max-num-batched-tokens {max_num_batched_tokens} \
     --speculative_config.method dspark \
     --speculative_config.model nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4-DSpark \
     --speculative_config.num_speculative_tokens {num_speculative_tokens} \
-    --speculative_config.max_model_len {max_model_len} \
     --mamba-backend flashinfer \
     --mamba-ssm-cache-dtype float16 \
     --enable-mamba-cache-stochastic-rounding \
