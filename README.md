@@ -14,7 +14,7 @@ repository changes use the separate [development guide](docs/AGENT_DEVELOPMENT.m
 ## Table of Contents
 
 - [DISCLAIMER](#disclaimer)
-- [QUICK START](#quick-start)
+- [QUICK START](#quick-start-shortcut)
 - [CHANGELOG](#changelog)
 - [1. Building the Docker Image](#1-building-the-docker-image)
 - [2. Launching the Cluster (Recommended)](#2-launching-the-cluster-recommended)
@@ -41,7 +41,22 @@ If you want to build only the runner from precompiled vLLM and FlashInfer wheels
 
 Similarly, `--rebuild-flashinfer`, `--flashinfer-ref`, and `--apply-flashinfer-pr` control the FlashInfer build and force the local build path.
 
-## QUICK START
+## QUICK START SHORTCUT
+
+If you are here to run DeepSeek V4 Flash (07/31 version), follow these instructions, otherwise skip to the next section.
+
+Before you start, make sure you connect your Sparks together and enable passwordless SSH as described in our [Networking Guide](docs/NETWORKING.md). You can also check out NVIDIA's [Connect Two Sparks Playbook](https://build.nvidia.com/spark/connect-two-sparks/stacked-sparks), but using our guide is the best way to get started. The guide includes instructions for 3-node Spark mesh clusters.
+
+Check out locally. Do it on the head node of the cluster.
+This will build the image, download and distribute the model and launch the cluster.
+
+```bash
+git clone https://github.com/eugr/spark-vllm-docker.git
+cd spark-vllm-docker
+./run-recipe.sh recipes/deepseek-v4-flash-0731.yaml --setup
+```
+
+## REGULAR QUICK START
 
 ### Build
 
