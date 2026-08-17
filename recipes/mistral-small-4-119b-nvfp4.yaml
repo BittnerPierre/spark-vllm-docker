@@ -14,7 +14,7 @@ defaults:
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 0.8
-  max_model_len: 65536
+  max_model_len: 131072   # 128K — couvre la profondeur 100000 du profil Spark Arena v1 (modèle natif jusqu'à 256K)
 
 env: {}
 
